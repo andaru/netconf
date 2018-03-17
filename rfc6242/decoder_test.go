@@ -200,9 +200,9 @@ var decoderCases = []struct {
 func testDecoderGetDecoder(chunked bool, input string) *Decoder {
 	var framer FramerFn
 	if chunked {
-		framer = DecoderChunked
+		framer = decoderChunked
 	} else {
-		framer = DecoderEndOfMessage
+		framer = decoderEndOfMessage
 	}
 	return NewDecoder(
 		strings.NewReader(input),
@@ -292,26 +292,26 @@ var benchmarkData = map[string][]byte{
 }
 
 func BenchmarkDecoderEndOfMessageReader(b *testing.B) {
-	benchmarkDecoderReader(b, benchmarkData["eom/hello"], DecoderEndOfMessage)
+	benchmarkDecoderReader(b, benchmarkData["eom/hello"], decoderEndOfMessage)
 }
 
 func BenchmarkDecoderEndOfMessageWriterTo(b *testing.B) {
-	benchmarkDecoderWriterTo(b, benchmarkData["eom/hello"], DecoderEndOfMessage)
+	benchmarkDecoderWriterTo(b, benchmarkData["eom/hello"], decoderEndOfMessage)
 }
 
 func BenchmarkDecoderChunkedWriterTo(b *testing.B) {
-	benchmarkDecoderWriterTo(b, benchmarkData["chunked/rfc6242-s5"], DecoderChunked)
+	benchmarkDecoderWriterTo(b, benchmarkData["chunked/rfc6242-s5"], decoderChunked)
 }
 
 func BenchmarkDecoderChunkedReader(b *testing.B) {
-	benchmarkDecoderReader(b, benchmarkData["chunked/rfc6242-s5"], DecoderChunked)
+	benchmarkDecoderReader(b, benchmarkData["chunked/rfc6242-s5"], decoderChunked)
 }
 
 func benchmarkDecoderWriterTo(b *testing.B, msg []byte, framer FramerFn) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		d := NewDecoder(bytes.NewReader(msg), WithFramer(DecoderEndOfMessage))
+		d := NewDecoder(bytes.NewReader(msg), WithFramer(decoderEndOfMessage))
 		io.Copy(devNull{}, d)
 	}
 }
@@ -320,7 +320,7 @@ func benchmarkDecoderReader(b *testing.B, msg []byte, framer FramerFn) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		d := decoderReaderOnly{NewDecoder(bytes.NewReader(msg), WithFramer(DecoderEndOfMessage))}
+		d := decoderReaderOnly{NewDecoder(bytes.NewReader(msg), WithFramer(decoderEndOfMessage))}
 		io.Copy(devNull{}, d)
 	}
 }

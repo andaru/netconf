@@ -48,7 +48,7 @@ type Decoder struct {
 func NewDecoder(input io.Reader, options ...DecoderOption) *Decoder {
 	d := &Decoder{
 		Input:   input,
-		Framer:  DecoderEndOfMessage,
+		Framer:  decoderEndOfMessage,
 		bufSize: defaultReaderBufferSize,
 		s:       bufio.NewScanner(input),
 		once:    new(sync.Once),

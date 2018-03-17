@@ -36,9 +36,9 @@ const (
 	errProtocol        = "protocol error"
 )
 
-// DecoderEndOfMessage is the NETCONF 1.0 end-of-message delimited
+// decoderEndOfMessage is the NETCONF 1.0 end-of-message delimited
 // decoding function.
-func DecoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token []byte, err error) {
+func decoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token []byte, err error) {
 	if len(b) < len(tokenEOM) {
 		return
 	}
@@ -76,8 +76,8 @@ func DecoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token [
 	return
 }
 
-// DecoderChunked is the NETCONF 1.1 chunked framing decoder function.
-func DecoderChunked(d *Decoder, b []byte, atEOF bool) (advance int, token []byte, err error) {
+// decoderChunked is the NETCONF 1.1 chunked framing decoder function.
+func decoderChunked(d *Decoder, b []byte, atEOF bool) (advance int, token []byte, err error) {
 	if d.scanErr != nil {
 		err = d.scanErr
 		return
