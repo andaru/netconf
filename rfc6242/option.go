@@ -25,7 +25,7 @@ func WithScannerBufferSize(bytes int) DecoderOption {
 }
 
 // WithFramer sets the Decoder's initial Framer.
-func WithFramer(f FramerFn) DecoderOption { return func(d *Decoder) { d.Framer = f } }
+func WithFramer(f FramerFn) DecoderOption { return func(d *Decoder) { d.framer = f } }
 
 // WithMaximumChunkSize sets an upper bound on the chunk size used
 // when writing data to an Encoder. If 0 is passed, the upper bound

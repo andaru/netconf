@@ -3,27 +3,56 @@ package rfc6242
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDecodeEncode(t *testing.T) {
-	for _, tc := range decoderCases {
-		if tc.wantError != "" {
-			continue
-		}
-		t.Run(tc.name, func(t *testing.T) {
+func TestEncoder(t *testing.T) {
+	for _, tc := range []struct {
+		chunked      bool
+		maxChunkSize int
+		input        []string
+		output       string
+	}{
+		{
+			chunked: true,
+			input:   []string{"foo"},
+			output:  "\n#3\nfoo\n##\n",
+		},
+
+		{
+			chunked: false,
+			input:   []string{"foo"},
+			output:  "foo]]>]]>",
+		},
+
+		{
+			chunked: true,
+			input:   []string{"foo", "foobar"},
+			output:  "\n#3\nfoo\n##\n\n#6\nfoobar\n##\n",
+		},
+
+		{
+			chunked: false,
+			input:   []string{"foo", "foobar"},
+			output:  "foo]]>]]>foobar]]>]]>",
+		},
+	} {
+		t.Run(fmt.Sprintf("chunked=%v:%q", tc.chunked, tc.input), func(t *testing.T) {
 			ck := assert.New(t)
-			d := testDecoderGetDecoder(tc.chunked, tc.input)
-			output := new(bytes.Buffer)
+			output := &bytes.Buffer{}
 			e := NewEncoder(output)
-			n, err := io.Copy(e, d)
-			ck.NoError(err)
-			ck.Equal(int64(len(tc.output)), n)
+			e.ChunkedFraming = tc.chunked
+			for _, line := range tc.input {
+				wn, err := e.Write([]byte(line))
+				ck.NoError(err)
+				ck.NoError(e.EndOfMessage())
+				ck.Equal(len(line), wn)
+			}
 			ck.Equal(tc.output, output.String())
 		})
+
 	}
 }
 

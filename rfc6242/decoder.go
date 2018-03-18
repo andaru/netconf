@@ -3,7 +3,6 @@ package rfc6242
 import (
 	"bufio"
 	"io"
-	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -20,72 +19,83 @@ type FramerFn func(d *Decoder, data []byte, atEOF bool) (advance int, token []by
 // source argument, but if the value passed also supports io.WriterTo
 // (as does Decoder), the WriteTo function will instead be called with
 // the copy destination as its writer argument.
+//
+// Decoder is not safe for concurrent use.
 type Decoder struct {
 	// Input is the input source for the Decoder. The input stream
 	// must consist of RFC6242 encoded data according to the current
 	// Framer.
 	Input io.Reader
-	// Framer is the function used to tokenize incoming input. It may
-	// be changed prior to any call to Read, to enable the :base:1.0
-	// to :base:1.1 NETCONF protocol upgrade described in
-	// RFC6241/RFC6242.
-	Framer FramerFn
 
-	s    *bufio.Scanner
-	pr   *io.PipeReader
-	pw   *io.PipeWriter
-	once *sync.Once
+	framer     FramerFn
+	s          *bufio.Scanner
+	pr         *io.PipeReader
+	pw         *io.PipeWriter
+	afterFirst func()
 
-	// decoder state used in chunked framing mode
 	scanErr       error
-	chunkDataLeft uint64
-	bufSize       int
+	chunkDataLeft uint64 // state
+	bufSize       int    // config
 	anySeen       bool
 	eofOK         bool
+	reading       bool
 }
 
 // NewDecoder creates a new RFC6242 transport framing decoder
 func NewDecoder(input io.Reader, options ...DecoderOption) *Decoder {
 	d := &Decoder{
 		Input:   input,
-		Framer:  decoderEndOfMessage,
+		framer:  decoderEndOfMessage,
 		bufSize: defaultReaderBufferSize,
-		s:       bufio.NewScanner(input),
-		once:    new(sync.Once),
 	}
 	for _, option := range options {
 		option(d)
 	}
 	d.pr, d.pw = io.Pipe()
-	tmp := make([]byte, d.bufSize)
-	d.s.Buffer(tmp, d.bufSize)
+	if d.s == nil {
+		d.s = bufio.NewScanner(input)
+		tmp := make([]byte, d.bufSize)
+		d.s.Buffer(tmp, d.bufSize)
+	}
 	d.s.Split(d.split)
 	return d
 }
 
 // Read reads from the Decoder's input and copies the data into b,
 // implementing io.Reader.
-func (d *Decoder) Read(b []byte) (int, error) {
-	d.once.Do(func() { go readerLoop(d) })
-	n, err := d.pr.Read(b)
-	if err == io.EOF && !d.eofOK {
-		err = errors.WithStack(io.ErrUnexpectedEOF)
+func (d *Decoder) Read(b []byte) (n int, err error) {
+	if d.s.Scan() {
+		token := d.s.Bytes()
+		if len(token) <= len(b) {
+			copy(b, token)
+			return len(token), nil
+		}
+		go func() {
+			if _, err := d.pw.Write(token); err != nil {
+				d.pr.CloseWithError(err)
+			}
+		}()
+		n, err = d.pr.Read(b)
+	} else if err = d.s.Err(); err == nil {
+		if d.eofOK {
+			err = io.EOF
+		} else {
+			err = io.ErrUnexpectedEOF
+		}
 	}
-	return n, err
+	return
 }
 
 // WriteTo reads from the Decoder's input, strips the transport
 // encoding and writes the decoded data to w, implementing
 // io.WriterTo.
 func (d *Decoder) WriteTo(w io.Writer) (n int64, err error) {
-	var wn int
 	for err == nil && d.s.Scan() {
 		b := d.s.Bytes()
-		wn, err = w.Write(b)
-		n += int64(wn)
+		_, err = w.Write(b)
+		n += int64(len(b))
 	}
-	err = d.s.Err()
-	if err == nil && !d.eofOK {
+	if err = d.s.Err(); err == nil && !d.eofOK {
 		err = errors.WithStack(io.ErrUnexpectedEOF)
 	}
 	return
@@ -96,19 +106,7 @@ func (d *Decoder) split(b []byte, eof bool) (a int, t []byte, err error) {
 		err = d.scanErr
 		return
 	}
-	return d.Framer(d, b, eof)
-}
-
-func readerLoop(d *Decoder) (n int64, err error) {
-	var wn int
-	for err == nil && d.s.Scan() {
-		if scan := d.s.Bytes(); len(scan) > 0 {
-			wn, err = d.pw.Write(scan)
-			n += int64(wn)
-		}
-	}
-	d.pw.CloseWithError(d.s.Err())
-	return
+	return d.framer(d, b, eof)
 }
 
 const (

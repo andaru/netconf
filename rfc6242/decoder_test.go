@@ -123,7 +123,7 @@ var decoderCases = []struct {
 		name:      "chunked/error:no chunk-size but other data",
 		chunked:   true,
 		input:     "\n#AB",
-		wantError: ErrInvalidChunk.Error(),
+		wantError: `invalid chunk header; expected DIGIT1 or HASH, saw "A" ([65])`,
 	},
 
 	{
@@ -144,7 +144,7 @@ var decoderCases = []struct {
 		name:      "chunked/error:chunk-size too big",
 		chunked:   true,
 		input:     "\n#4294967297\n#....",
-		wantError: "bad chunk-size: chunk size larger than maximum (4294967295)",
+		wantError: "chunk size larger than maximum (4294967295)",
 	},
 
 	{
@@ -161,7 +161,7 @@ var decoderCases = []struct {
 		name:      "chunked/error:three docs,multiple chunks broken at the XX",
 		chunked:   true,
 		input:     "\n#3\nABC\n#3\nDEF\n##\n\n#1\n0\n#1\n0\n##\n\n#6\n/opr8tXX\n##\n\n#1\no\n#1\nr\n##\n",
-		wantError: "protocol error: invalid chunk header",
+		wantError: `invalid chunk header; expected "\n#" ([10 35]), saw "XX" ([88 88])`,
 		output:    "ABCDEF00/opr8t", // confirm we flush up to end of the valid token
 	},
 
@@ -169,8 +169,8 @@ var decoderCases = []struct {
 		name:      "chunked/error:unexpected EOF:long chunk",
 		chunked:   true,
 		input:     "\n#4\nABCDE",
-		output:    "ABCD",
-		wantError: "protocol error: invalid chunk header",
+		output:    "ABCD", // ensure we flush the first (valid) chunk
+		wantError: `invalid chunk header; expected "\n" ([10]), saw "E" ([69])`,
 	},
 
 	// rfc6242 test cases
