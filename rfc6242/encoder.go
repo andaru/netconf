@@ -5,7 +5,8 @@ import (
 	"strconv"
 )
 
-// NewEncoder returns a new RFC6242 transport encoding writer.
+// NewEncoder returns a new RFC6242 transport encoding writer with underlying
+// writer output, configured with any options provided.
 func NewEncoder(output io.Writer, opts ...EncoderOption) *Encoder {
 	e := &Encoder{Output: output, MaxChunkSize: rfc6242maximumAllowedChunkSize}
 	for _, opt := range opts {

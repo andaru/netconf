@@ -41,7 +41,8 @@ type Decoder struct {
 	reading       bool
 }
 
-// NewDecoder creates a new RFC6242 transport framing decoder
+// NewDecoder creates a new RFC6242 transport framing decoder reading from
+// input, configured with any options provided.
 func NewDecoder(input io.Reader, options ...DecoderOption) *Decoder {
 	d := &Decoder{
 		Input:   input,
