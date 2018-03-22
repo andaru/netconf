@@ -14,14 +14,18 @@ func NewEncoder(output io.Writer, opts ...EncoderOption) *Encoder {
 	return e
 }
 
-// Encoder is a filtering writer. By default it does nothing, acting as a pass
-// through writer. If chunked mode is enabled (see SetChunkedFramingMode),
-// input to Write calls is chunked and the RFC6242 chunked encoding output
-// written to the underlying writer.
+// Encoder is a filtering writer. By default it acts as a pass through writer.
+// If chunked mode is enabled (see SetChunkedFramingMode), input to Write calls
+// is chunked and the RFC6242 chunked encoding output written to the underlying
+// writer.
 type Encoder struct {
-	Output         io.Writer
+	// Output is the underlying Writer to receive encoded output
+	Output io.Writer
+	// ChunkedFraming sets whether the next call to Write should use
+	// chunked-message framing (true) or end-of-message framing (false)
 	ChunkedFraming bool
-
+	// MaxChunkSize is the maximum size of chunks the encoder will Encode. If
+	// zero, the Encoder places no artificial ceiling on the chunk size.
 	MaxChunkSize uint32
 }
 
