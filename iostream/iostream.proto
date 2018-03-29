@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package iostream;
+
+option go_package = "iostream";
+
+// IOStream is a streaming IO aggregator.
+//
+// The service accepts RPC connections from transport clients and
+// provides a multi-channel streaming byte transport to each.
+service IOStream {
+  // TransportStream starts a bi-directional, multi-channel streaming
+  // transport between the RPC client and the aggregator.
+  rpc TransportStream(stream TransportPDU) returns (stream TransportPDU) {}
+}
+
+// TransportPDU is a data unit, multiplexed on a transport stream.
+message TransportPDU {
+  // channel ID the data in this PDU is associated with.
+  // Implementations typically treat channelID 1 as data, and 2 as error.
+  int32 channelID = 1;
+  // data is the PDU data.
+  bytes data = 2;
+
+  enum DataType {
+    NULL = 0; // data of this type is ignored
+    DATA_TX = 1; // data is stream contents transmitted to remote
+    DATA_TX_CLOSE = 2;
+  }
+  // data_type indicates the PDU data type
+  DataType data_type = 3;
+}
