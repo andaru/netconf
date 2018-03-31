@@ -9,9 +9,13 @@ func SetChunkedFraming(objects ...interface{}) {
 	for _, obj := range objects {
 		switch obj := obj.(type) {
 		case *Decoder:
-			obj.framer = decoderChunked
+			if obj != nil {
+				obj.framer = decoderChunked
+			}
 		case *Encoder:
-			obj.ChunkedFraming = true
+			if obj != nil {
+				obj.ChunkedFraming = true
+			}
 		}
 	}
 }
