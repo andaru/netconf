@@ -3,8 +3,8 @@
 
 package rfc6242
 
-// SetChunkedFraming enables chunked framing mode on all
-// *Decoder and *Encoder objects passed.
+// SetChunkedFraming enables chunked framing mode on any non-nil
+// *Decoder and *Encoder objects passed to it.
 func SetChunkedFraming(objects ...interface{}) {
 	for _, obj := range objects {
 		switch obj := obj.(type) {
