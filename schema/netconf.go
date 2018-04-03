@@ -209,7 +209,7 @@ func schemaNodeNotification(ev EventSendReceiver) *xmlstream.Node {
 	notif := xmlstream.ElementNode(nameNotification)
 	notif.Append(xmlstream.ElementNode(nameWildcard)).Append(
 		xmlstream.StartElementEventNode(func(ctx context.Context, it *xmlstream.Node, t xml.Token) {
-			ev.RPCError(ctx, t.(xml.StartElement))
+			ev.Notification(ctx, t.(xml.StartElement))
 		}))
 	return notif
 }
