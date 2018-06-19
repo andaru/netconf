@@ -94,6 +94,37 @@ var decoderCases = []struct {
 		output:  "ABCDEF00/opr8tor",
 	},
 
+	{
+		name:    "chunked/ok:many docs,end after chunk",
+		chunked: true,
+		input:   "\n#7\n0ABCDEF\n##\n\n#7\n1ABCDEF\n##\n\n#7\n2ABCDEF\n##\n\n#7\n3ABCDEF\n##\n\n#7\n4ABCDEF\n##\n\n#7\n5ABCDEF\n##\n\n#7\n6ABCDEF\n##\n\n#7\n7ABCDEF\n##\n\n#7\n8ABCDEF\n##\n\n#7\n9ABCDEF\n##\n",
+		output:  "0ABCDEF1ABCDEF2ABCDEF3ABCDEF4ABCDEF5ABCDEF6ABCDEF7ABCDEF8ABCDEF9ABCDEF",
+	},
+
+	{
+		name: "eom/ok:many docs",
+		input: "0-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"1-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"2-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"3-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"4-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"5-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"6-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"7-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"8-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>" +
+			"9-ABCDEFGHIJKLMNOPQRSTUVWXYZ]]>]]>",
+		output: "0-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"1-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"2-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"3-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"4-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"5-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"6-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"7-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"8-ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+			"9-ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+	},
+
 	// error cases
 
 	{
@@ -250,11 +281,12 @@ func TestDecoderReader(t *testing.T) {
 				// to force the io.Reader implementation to be used by io.Copy.
 				d := decoderReaderOnly{testDecoderGetDecoder(tc.chunked, tc.input)}
 				ck := assert.New(t)
-				output := &bytes.Buffer{}
+				output := newDumper(1)
 				// io.Copy uses the io.Reader implementation, which
 				// uses a background goroutine to push filtered data
 				// through a pipe.
-				n, err := io.Copy(output, d)
+				buf := make([]byte, DecoderMinScannerBufferSize)
+				n, err := io.CopyBuffer(output, d, buf)
 				var errMsg string
 				if err != nil {
 					errMsg = err.Error()
@@ -289,38 +321,167 @@ var benchmarkData = map[string][]byte{
 <session-id>4</session-id>
 </hello>`),
 	"chunked/rfc6242-s5": []byte("\n#139\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rpc-reply id=\"106\"\n           xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\">\n  <ok/>\n</rpc-reply>\n##\n"),
+	"eom/session-1": []byte(`<?xml version="1.0" encoding="UTF-8"?><hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <capabilities>
+    <capability>
+      urn:ietf:params:netconf:base:1.0
+    </capability>
+  </capabilities>
+</hello>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="r1">
+  <lock><target><running/></target></lock>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="r2">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="r3">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="r4">
+  <get-config></rpc>get-config>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="r5">
+  <unlock><target><running/></target></unlock>
+</rpc>
+]]>]]>
+`),
 }
 
-func BenchmarkDecoderEndOfMessageReader(b *testing.B) {
-	benchmarkDecoderReader(b, benchmarkData["eom/hello"], decoderEndOfMessage)
-}
+// func BenchmarkDecoder(b *testing.B) {
+// 	for _, tc := range []struct {
+// 		name    string
+// 		chunked bool
+// 		input   []byte
+// 	}{
+// 		{
+// 			name:  "eom/hello",
+// 			input: benchmarkData["eom/hello"],
+// 		},
+// 		{
+// 			name:  "eom/session-1",
+// 			input: benchmarkData["eom/session-1"],
+// 		},
+// 		{
+// 			name:    "chunked/rfc6242-s5",
+// 			chunked: true,
+// 			input:   benchmarkData["chunked/rfc6242-s5"],
+// 		},
+// 	} {
+// 		pr, pw := io.Pipe()
+// 		defer pr.Close()
+// 		defer pw.Close()
 
-func BenchmarkDecoderEndOfMessageWriterTo(b *testing.B) {
-	benchmarkDecoderWriterTo(b, benchmarkData["eom/hello"], decoderEndOfMessage)
-}
+// 		for _, ttc := range []struct {
+// 			name string
+// 		}{
+// 			{
+// 				name: "chunked",
+// 				d:    f,
+// 			},
+// 		} {
 
-func BenchmarkDecoderChunkedWriterTo(b *testing.B) {
-	benchmarkDecoderWriterTo(b, benchmarkData["chunked/rfc6242-s5"], decoderChunked)
-}
+// 		}
 
-func BenchmarkDecoderChunkedReader(b *testing.B) {
-	benchmarkDecoderReader(b, benchmarkData["chunked/rfc6242-s5"], decoderChunked)
-}
+// 		b.Run(tc.name, func(b *testing.B) {
+// 			d := NewDecoder(pr)
+// 			if tc.chunked {
+// 				SetChunkedFraming(d)
+// 			}
+// 			b.ResetTimer()
+// 			b.ReportAllocs()
 
-func benchmarkDecoderWriterTo(b *testing.B, msg []byte, framer FramerFn) {
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		d := NewDecoder(bytes.NewReader(msg), WithFramer(decoderEndOfMessage))
-		io.Copy(devNull{}, d)
+// 			go io.Copy(devNull{}, d)
+
+// 			for i := 0; i < b.N; i++ {
+// 				in := bytes.NewReader(tc.input)
+// 				io.Copy(pw, in)
+// 			}
+// 		})
+// 	}
+// }
+
+func getDecRO(r io.Reader) io.Reader { return &decoderReaderOnly{NewDecoder(r)} }
+func getDec(r io.Reader) io.Reader   { return NewDecoder(r) }
+
+func benchmarkDecoder(b *testing.B, df func(io.Reader) io.Reader) {
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	defer pw.Close()
+
+	for _, tc := range []struct {
+		name    string
+		chunked bool
+	}{
+		{name: "eom/hello"},
+		{name: "eom/session-1"},
+		{name: "chunked/rfc6242-s5", chunked: true},
+	} {
+
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			decoder := df(pr)
+			go io.Copy(devNull{}, decoder)
+			defer func() {
+				if cls, ok := decoder.(io.Closer); ok {
+					cls.Close()
+				}
+			}()
+			b.ResetTimer()
+			switch tc.chunked {
+			case true:
+				SetChunkedFraming(decoder)
+			case false:
+				ClearChunkedFraming(decoder)
+			}
+			for i := 0; i < b.N; i++ {
+				rdr := bytes.NewReader(benchmarkData[tc.name])
+				io.Copy(pw, rdr)
+			}
+		})
 	}
 }
 
-func benchmarkDecoderReader(b *testing.B, msg []byte, framer FramerFn) {
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		d := decoderReaderOnly{NewDecoder(bytes.NewReader(msg), WithFramer(decoderEndOfMessage))}
-		io.Copy(devNull{}, d)
+func BenchmarkDecoder(b *testing.B) {
+	for _, tc := range []struct {
+		name string
+		dec  func(io.Reader) io.Reader
+	}{
+		{
+			name: "Reader",
+			dec:  getDecRO,
+		},
+		{
+			name: "WriterTo",
+			dec:  getDec,
+		},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			benchmarkDecoder(b, tc.dec)
+		})
 	}
+
 }
+
+// dumper is a Writer to a byte slice.
+// By setting the start capacity, you can influence system behavior.
+type dumper struct{ b []byte }
+
+func newDumper(sc ...int) *dumper {
+	startCap := 8
+	if sc != nil {
+		startCap = sc[0]
+	}
+	return &dumper{b: make([]byte, 0, startCap)}
+}
+
+func (d *dumper) Write(p []byte) (n int, err error) {
+	d.b = append(d.b, p...)
+	return len(p), nil
+}
+
+func (d *dumper) String() string { return string(d.b) }
