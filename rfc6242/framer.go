@@ -36,10 +36,11 @@ func decoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token [
 		return
 	}
 
+	var cur []byte
 	// always scan the input buffer b at least once. if we're at EOF,
 	// continue scanning until we've processed the entire buffer.
 	for first := true; first || (atEOF && advance < len(b)); first = false {
-		cur := b[advance:]
+		cur = b[advance:]
 		if len(cur) < len(tokenEOM) {
 			break
 		}
@@ -56,6 +57,10 @@ func decoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token [
 			advance += eomStartIdx
 			cur = cur[eomStartIdx:]
 		}
+		if len(cur) < len(tokenEOM) {
+			continue
+		}
+
 		// confirm we see a complete EOM token. if not,
 		// append the non EOM token data we saw to our result.
 		i := 1
