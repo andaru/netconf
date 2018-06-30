@@ -352,59 +352,6 @@ var benchmarkData = map[string][]byte{
 `),
 }
 
-// func BenchmarkDecoder(b *testing.B) {
-// 	for _, tc := range []struct {
-// 		name    string
-// 		chunked bool
-// 		input   []byte
-// 	}{
-// 		{
-// 			name:  "eom/hello",
-// 			input: benchmarkData["eom/hello"],
-// 		},
-// 		{
-// 			name:  "eom/session-1",
-// 			input: benchmarkData["eom/session-1"],
-// 		},
-// 		{
-// 			name:    "chunked/rfc6242-s5",
-// 			chunked: true,
-// 			input:   benchmarkData["chunked/rfc6242-s5"],
-// 		},
-// 	} {
-// 		pr, pw := io.Pipe()
-// 		defer pr.Close()
-// 		defer pw.Close()
-
-// 		for _, ttc := range []struct {
-// 			name string
-// 		}{
-// 			{
-// 				name: "chunked",
-// 				d:    f,
-// 			},
-// 		} {
-
-// 		}
-
-// 		b.Run(tc.name, func(b *testing.B) {
-// 			d := NewDecoder(pr)
-// 			if tc.chunked {
-// 				SetChunkedFraming(d)
-// 			}
-// 			b.ResetTimer()
-// 			b.ReportAllocs()
-
-// 			go io.Copy(devNull{}, d)
-
-// 			for i := 0; i < b.N; i++ {
-// 				in := bytes.NewReader(tc.input)
-// 				io.Copy(pw, in)
-// 			}
-// 		})
-// 	}
-// }
-
 func getDecRO(r io.Reader) io.Reader { return &decoderReaderOnly{NewDecoder(r)} }
 func getDec(r io.Reader) io.Reader   { return NewDecoder(r) }
 
