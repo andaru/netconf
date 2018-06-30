@@ -192,7 +192,7 @@ var decoderCases = []struct {
 		name:      "chunked/error:three docs,multiple chunks broken at the XX",
 		chunked:   true,
 		input:     "\n#3\nABC\n#3\nDEF\n##\n\n#1\n0\n#1\n0\n##\n\n#6\n/opr8tXX\n##\n\n#1\no\n#1\nr\n##\n",
-		wantError: `invalid chunk header; expected "\n#" ([10 35]), saw "XX" ([88 88])`,
+		wantError: `invalid chunk header; expected "\n#" ([10 35]), saw "XX\n##\n" ([88 88 10 35 35 10])`,
 		output:    "ABCDEF00/opr8t", // confirm we flush up to end of the valid token
 	},
 

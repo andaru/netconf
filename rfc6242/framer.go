@@ -222,7 +222,13 @@ func detectChunkHeader(b []byte) (action chunkHeaderAction, advance int, chunksi
 			err = chunkHeaderLexError{got: b[2:3], wexplicit: []byte("DIGIT1 or HASH")}
 		}
 	default:
-		err = chunkHeaderLexError{got: b[:2], want: []byte("\n#")}
+		var got []byte
+		if len(b) > 8 {
+			got = b[:8]
+		} else {
+			got = b[:len(b)]
+		}
+		err = chunkHeaderLexError{got: got, want: []byte("\n#")}
 	}
 	return
 }
