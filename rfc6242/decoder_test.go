@@ -349,6 +349,46 @@ var benchmarkData = map[string][]byte{
   <unlock><target><running/></target></unlock>
 </rpc>
 ]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="q1">
+  <lock><target><running/></target></lock>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="q2">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="q3">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="q4">
+  <get-config></rpc>get-config>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="q5">
+  <unlock><target><running/></target></unlock>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="x1">
+  <lock><target><running/></target></lock>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="x2">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="x3">
+  <get-config><filter/></rpc>get-config> <!--no-op-->
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="x4">
+  <get-config></rpc>get-config>
+</rpc>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="x5">
+  <unlock><target><running/></target></unlock>
+</rpc>
+]]>]]>
 `),
 }
 
