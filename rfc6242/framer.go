@@ -32,57 +32,49 @@ var (
 // decoderEndOfMessage is the NETCONF 1.0 end-of-message delimited
 // decoding function.
 func decoderEndOfMessage(d *Decoder, b []byte, atEOF bool) (advance int, token []byte, err error) {
-	if len(b) < len(tokenEOM) {
-		return
-	}
-
-	var cur []byte
-	// always scan the input buffer b at least once. if we're at EOF,
-	// continue scanning until we've processed the entire buffer.
-	for first := true; first || (atEOF && advance < len(b)); first = false {
-		cur = b[advance:]
+	d.eofOK = false
+	var i int
+	for cur := b[advance:]; advance < len(b); cur = b[advance:] {
 		if len(cur) < len(tokenEOM) {
-			break
-		}
-
-		eomStartIdx := bytes.IndexByte(cur, ']')
-		switch {
-		case eomStartIdx == -1:
-			token = append(token, cur...)
-			advance += len(cur)
+			// need more data
 			return
-		case eomStartIdx > 0:
-			// consume up to the start of the EOM token.
-			token = append(token, cur[:eomStartIdx]...)
-			advance += eomStartIdx
-			cur = cur[eomStartIdx:]
-		}
-		if len(cur) < len(tokenEOM) {
-			continue
 		}
 
-		// confirm we see a complete EOM token. if not,
-		// append the non EOM token data we saw to our result.
-		i := 1
-		for i < len(tokenEOM) {
-			ok := cur[i] == tokenEOM[i]
-			if !ok {
-				token = append(token, cur[:i]...)
-				break
+		idxeom := bytes.IndexByte(cur, ']')
+		switch {
+		case idxeom == -1:
+			// no EOM token seen; emit cur
+			advance += len(cur)
+			token = append(token, cur...)
+		case idxeom > 0:
+			// possible EOM token found; emit cur prior.
+			advance += idxeom
+			token = append(token, cur[:idxeom]...)
+		case idxeom == 0:
+			// confirm EOM token starting at head. if not
+			// a token, emit what we saw, else consume the
+			// EOM token.
+			for i = 0; i < len(tokenEOM); i++ {
+				if cur[i] != tokenEOM[i] {
+					token = append(token, cur[:i]...)
+					break
+				}
+				advance++
 			}
-			i++
+			// set EOF OK if we are at EOM. If we're not at the EOF,
+			// return now to allow the consumer to process the message
+			// before further reads. Doing so permits a NETCONF client
+			// or server to enable chunked-framing when they detect
+			// their peer has the appropriate capability (data
+			// contained within token).
+			if d.eofOK = i == len(tokenEOM); d.eofOK {
+				d.anySeen = true
+				if !atEOF {
+					return
+				}
+			}
 		}
-		advance += i
-		d.eofOK = i == len(tokenEOM)
-		if d.eofOK && !d.anySeen {
-			d.anySeen = true
-		}
-		if d.eofOK {
-			break
-		}
-
 	}
-
 	return
 }
 
