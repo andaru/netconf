@@ -1,11 +1,11 @@
 package iostream
 
 import (
+	"context"
 	"errors"
 	"io"
 
 	"github.com/golang/glog"
-	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
