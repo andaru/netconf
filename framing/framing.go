@@ -15,9 +15,12 @@ import (
 //
 // It must only be used with bufio.Scanner who have a buffer of
 // at least 6 bytes (rarely is this a concern).
-func SplitEOM() bufio.SplitFunc {
+func SplitEOM(cb func()) bufio.SplitFunc {
 	var eofOK, seen bool
 	return func(b []byte, atEOF bool) (advance int, token []byte, err error) {
+		// fmt.Printf("> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err)
+		// defer func() { fmt.Printf("< b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err) }()
+
 		if atEOF && len(b) == 0 && !eofOK && seen {
 			err = io.ErrUnexpectedEOF
 			return
@@ -34,6 +37,7 @@ func SplitEOM() bufio.SplitFunc {
 			case idxeom > 0:
 				advance += idxeom
 				token = append(token, cur[:idxeom]...)
+				return
 			case idxeom == 0:
 				advance++
 				for i := 1; i < len(tokenEOM); advance, i = advance+1, i+1 {
@@ -41,6 +45,13 @@ func SplitEOM() bufio.SplitFunc {
 						token = append(token, cur[:i]...)
 						return
 					}
+				}
+				if cb != nil {
+					cb()
+				}
+				if !atEOF {
+					eofOK = bytes.HasSuffix(b, tokenEOM)
+					return
 				}
 			}
 		}
@@ -66,8 +77,10 @@ func SplitChunked() bufio.SplitFunc {
 	var cs, dataleft int
 
 	return func(b []byte, atEOF bool) (advance int, token []byte, err error) {
+		// fmt.Printf("+> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err)
+		// defer func() { fmt.Printf("+> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err) }()
 		for cur := b[advance:]; err == nil && advance < len(b); cur = b[advance:] {
-			if len(cur) < 14 && !atEOF {
+			if len(cur) < 4 && !atEOF {
 				return
 			}
 			switch state {
@@ -94,6 +107,9 @@ func SplitChunked() bufio.SplitFunc {
 			case headerSize:
 				switch idx := bytes.IndexByte(cur, '\n'); {
 				case idx < 1, idx > 10:
+					if len(cur) < 11 && !atEOF {
+						return
+					}
 					err = ErrBadChunk
 				default:
 					csize := cur[:idx]

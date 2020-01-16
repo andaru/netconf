@@ -22,6 +22,14 @@ func TestFramingEOM(t *testing.T) {
 			input: "012345789012345789012345789012345789012345789012345789012345789]]>]]>012345789012345789012345789]]>]]>",
 			want:  "012345789012345789012345789012345789012345789012345789012345789012345789012345789012345789",
 		},
+		{
+			input: "0123456789]]>]]>0123456789]]>]]>0123456789]]>]]>0123456789]]>]]>]]>]]>0123456789]]>]]>]]>]]>",
+			want:  "01234567890123456789012345678901234567890123456789",
+		},
+		{
+			input: "]]>]]foo]]>]]>bar]]]]]>]]>]]]>]]]]>]]>baz]]>]]>",
+			want:  "]]>]]foobar]]]]]>]]>]]]>]]baz",
+		},
 		{input: "foo>]]>bar]]>]]>bazoopa]]>]]>", want: "foo>]]>barbazoopa"},
 		{input: "]]>]]>]]>]]>baz]]>]]>", want: "baz"},
 		{input: "]]>]]>]]>]]>]]>]]>", want: ""},
@@ -32,6 +40,7 @@ func TestFramingEOM(t *testing.T) {
 		{input: "foo", want: "foo", hasErr: true},
 		{input: "foo]]>]]>bar]]>]]>bazoopa", want: "foobarbazoopa", hasErr: true},
 		{input: "]]>]]>]]>]]>]]>]]>abcdefghijklmnop", want: "abcdefghijklmnop", hasErr: true},
+		{input: "a]]>]]>b]]>]]>c", want: "abc", hasErr: true},
 		{},
 	} {
 		minlen := len("]]>]]>")
@@ -41,7 +50,7 @@ func TestFramingEOM(t *testing.T) {
 				ck := assert.New(t)
 				scanner := bufio.NewScanner(strings.NewReader(tc.input))
 				scanner.Buffer(make([]byte, bsize), bsize)
-				scanner.Split(SplitEOM())
+				scanner.Split(SplitEOM(nil))
 				var got string
 				for scanner.Scan() {
 					got += scanner.Text()
