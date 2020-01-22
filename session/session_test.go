@@ -41,6 +41,29 @@ func TestSessionHello(t *testing.T) {
 			wantErr: "unexpected EOF",
 		},
 		{
+			config: Config{},
+			input: `
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+<capabilities>
+	<capability>urn:ietf:params:netconf:base:1.1
+	</capability>
+</capabilities>
+</hello>]]>]]>`,
+			wantErr: "no session-id received for client session",
+		},
+		{
+			config: Config{ID: 1},
+			input: `
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+<capabilities>
+	<capability>urn:ietf:params:netconf:base:1.1
+	</capability>
+</capabilities>
+<session-id>123</session-id>
+</hello>]]>]]>`,
+			wantErr: "session-id received from client peer",
+		},
+		{
 			config: Config{ID: 1},
 			input: `
 <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
@@ -136,9 +159,59 @@ func TestSessionHello(t *testing.T) {
 </capabilities>
 </hello>
 ]]>]]>`,
+		},
+		{
+			config: Config{Capabilities: Capabilities{capBase11, capBase10}},
+			input: `
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+<capabilities>
+	<capability>
+		urn:ietf:params:netconf:base:1.1
+	</capability>
+	<capability>
+		urn:ietf:params:netconf:base:1.0
+	</capability>
+</capabilities>
+<session-id>123</session-id>
+</hello>
+]]>]]>`,
+		},
+		{
+			config: Config{Capabilities: Capabilities{capBase11, capBase10}},
+			input: `
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+<capabilities>
+	<capability>
+		urn:ietf:params:netconf:base:1.1
+	</capability>
+	<capability>
+		urn:ietf:params:netconf:base:1.0
+	</capability>
+</capabilities>
+<session-id> -123 </session-id>
+</hello>
+]]>]]>`,
+			wantErr: "invalid session-id value",
+		},
+		{
+			config: Config{Capabilities: Capabilities{capBase11, capBase10}},
+			input: `
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+<capabilities>
+	<capability>
+		urn:ietf:params:netconf:base:1.1
+	</capability>
+	<capability>
+		urn:ietf:params:netconf:base:1.0
+	</capability>
+</capabilities>
+<session-id>  </session-id>
+</hello>
+]]>]]>`,
+			wantErr: "missing session-id value",
 		},
 	} {
-		t.Run("", func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			src := strings.NewReader(tc.input)
 			dst := closeBuffer{&bytes.Buffer{}}
 			s := New(src, dst, tc.config)
@@ -154,7 +227,6 @@ func TestSessionHello(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestSessionEstablished(t *testing.T) {
