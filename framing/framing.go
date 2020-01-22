@@ -12,50 +12,38 @@ import (
 
 // SplitEOM returns a bufio.SplitFunc suitable for RFC6242
 // "end-of-message delimited" NETCONF transport streams.
-//
-// It must only be used with bufio.Scanner who have a buffer of
-// at least 6 bytes (rarely is this a concern).
 func SplitEOM(cb func()) bufio.SplitFunc {
 	var eofOK, seen bool
 	return func(b []byte, atEOF bool) (advance int, token []byte, err error) {
-		// fmt.Printf("> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err)
-		// defer func() { fmt.Printf("< b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err) }()
-
-		if atEOF && len(b) == 0 && !eofOK && seen {
-			err = io.ErrUnexpectedEOF
+		if atEOF && len(b) == 0 {
+			if !eofOK && seen {
+				err = io.ErrUnexpectedEOF
+			}
 			return
 		}
-		seen = seen || len(b) > 0
-		for cur := b[advance:]; advance < len(b); cur = b[advance:] {
-			if len(cur) < len(tokenEOM) && !atEOF {
-				return
+		seen = true
+		idx := bytes.Index(b, tokenEOM)
+		if idx > -1 {
+			if cb != nil {
+				cb()
 			}
-			switch idxeom := bytes.IndexByte(cur, ']'); {
-			case idxeom == -1:
-				advance += len(cur)
-				token = append(token, cur...)
-			case idxeom > 0:
-				advance += idxeom
-				token = append(token, cur[:idxeom]...)
-				return
-			case idxeom == 0:
-				advance++
-				for i := 1; i < len(tokenEOM); advance, i = advance+1, i+1 {
-					if cur[i] != tokenEOM[i] {
-						token = append(token, cur[:i]...)
-						return
-					}
-				}
-				if cb != nil {
-					cb()
-				}
-				if !atEOF {
-					eofOK = bytes.HasSuffix(b, tokenEOM)
-					return
-				}
-			}
+			advance = idx + len(tokenEOM)
+			token = b[:idx]
+			eofOK = true
+			return
 		}
-		eofOK = bytes.HasSuffix(b, tokenEOM)
+		eofOK = false
+		if len(b) <= (len(tokenEOM)*2) && !atEOF {
+			return 0, nil, nil
+		}
+		idx = bytes.IndexByte(b, ']')
+		if idx > -1 {
+			advance = idx
+			token = b[:idx]
+		} else {
+			advance = len(b)
+			token = b
+		}
 		return
 	}
 }
@@ -65,7 +53,7 @@ func SplitEOM(cb func()) bufio.SplitFunc {
 //
 // It must only be used with bufio.Scanner who have a buffer of
 // at least 16 bytes (rarely is this a concern).
-func SplitChunked() bufio.SplitFunc {
+func SplitChunked(cb func()) bufio.SplitFunc {
 	type stateT int
 	const (
 		headerStart stateT = iota
@@ -77,8 +65,6 @@ func SplitChunked() bufio.SplitFunc {
 	var cs, dataleft int
 
 	return func(b []byte, atEOF bool) (advance int, token []byte, err error) {
-		// fmt.Printf("+> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err)
-		// defer func() { fmt.Printf("+> b=%q atEOF=%v (advance=%d token=%q err=%v)\n", b, atEOF, advance, token, err) }()
 		for cur := b[advance:]; err == nil && advance < len(b); cur = b[advance:] {
 			if len(cur) < 4 && !atEOF {
 				return
@@ -140,6 +126,9 @@ func SplitChunked() bufio.SplitFunc {
 				case r == '\n' && cs > 0:
 					advance++
 					state = headerStart
+					if cb != nil {
+						cb()
+					}
 				default:
 					err = ErrBadChunk
 				}
