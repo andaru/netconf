@@ -83,9 +83,6 @@ type Config struct {
 	ID uint32
 	// Capabilities holds our session capabilities
 	Capabilities Capabilities
-
-	// EndOfMessage is called at the end of each (incoming) message
-	EndOfMessage HandlerFunc
 }
 
 // HandlerFunc is a Session handler function
@@ -127,14 +124,26 @@ const (
 	StatusClosed
 )
 
-// Incoming returns the incoming (from peer) message channel (implements io.Reader)
+// Incoming returns the incoming (from peer) message channel (implements io.Reader).
+//
+// This function always returned a non-nil message channel.
+//
+// Note that the object returned returned will return message.ErrEndOfStream to Read when
+// the underlying transport reaches EOF, and will return io.EOF at the end of each message.
 func (s *Session) Incoming() *message.Decoder { return s.Message.Reader() }
 
-// Outgoing returns the outgoing (to peer) message channel (implements io.WriteCloser)
+// Outgoing returns the outgoing (to peer) message channel (implements io.WriteCloser).
+//
+// This function always returned a non-nil message channel.
 func (s *Session) Outgoing() *message.Encoder { return s.Message.Writer() }
 
-// InitialHandshake performs the initial <hello> exchange and capabilities
-// exchange.
+// InitialHandshake performs session handshake, capabilities exchange and framing mode selection.
+//
+// Returns true if the handshake completed successfully, in which
+// case the session status will be StatusEstablished; otherwise returns false
+// if an error occurred (for either transport or validation reasons), in
+// which case Session.Errors will return non-nil and the session status will
+// be StatusError.
 func (s *Session) InitialHandshake() bool {
 	if s.State.Status != StatusCapabilitiesExchange {
 		return false
@@ -168,21 +177,16 @@ func (s *Session) AddError(errs ...error) (added int) {
 // Errors returns all session errors
 func (s *Session) Errors() []error { return s.State.errs }
 
+// Run executes the session using Handler h
+func (s *Session) Run(handler Handler) { Run(s, handler) }
+
 // onEndOfMessage performs end-of-message handling
 func (s *Session) onEndOfMessage() {
 	s.State.Counters.RxMsgs++
 	// close the incoming message and rotate it at the next read
 	s.Incoming().Close()
 	s.Message.FinishReader()
-	if s.Config.EndOfMessage != nil {
-		s.Config.EndOfMessage(s)
-	}
 }
-
-const (
-	capBase10 = "urn:ietf:params:netconf:base:1.0"
-	capBase11 = "urn:ietf:params:netconf:base:1.1"
-)
 
 // doCapabilitiesExchange performs capability exchange handling,
 // including setting the session framing mode based on the :base:1.x
@@ -199,21 +203,6 @@ func (s *Session) doCapabilitiesExchange() {
 	s.writer.SetFramingMode(base11)
 	s.State.Status = StatusEstablished
 }
-
-const (
-	xmlnsNetconf = "urn:ietf:params:xml:ns:netconf:base:1.0"
-)
-
-var (
-	xpNSetHello      = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']`)
-	xpNSetCapability = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']/capabilities/capability`)
-	xpNSetSessionID  = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']/session-id`)
-
-	seHello        = xml.StartElement{Name: xn("hello", xmlnsNetconf)}
-	seCapabilities = xml.StartElement{Name: xn("capabilities")}
-	seCapability   = xml.StartElement{Name: xn("capability")}
-	seSessionID    = xml.StartElement{Name: xn("session-id")}
-)
 
 func (s *Session) recvHello() {
 	// parse the incoming message's XML document
@@ -323,3 +312,21 @@ func xn(local string, spaces ...string) xml.Name {
 	}
 	return n
 }
+
+const (
+	capBase10 = "urn:ietf:params:netconf:base:1.0"
+	capBase11 = "urn:ietf:params:netconf:base:1.1"
+
+	xmlnsNetconf = "urn:ietf:params:xml:ns:netconf:base:1.0"
+)
+
+var (
+	xpNSetHello      = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']`)
+	xpNSetCapability = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']/capabilities/capability`)
+	xpNSetSessionID  = xpath.MustCompile(`/hello[namespace-uri()='urn:ietf:params:xml:ns:netconf:base:1.0']/session-id`)
+
+	seHello        = xml.StartElement{Name: xn("hello", xmlnsNetconf)}
+	seCapabilities = xml.StartElement{Name: xn("capabilities")}
+	seCapability   = xml.StartElement{Name: xn("capability")}
+	seSessionID    = xml.StartElement{Name: xn("session-id")}
+)

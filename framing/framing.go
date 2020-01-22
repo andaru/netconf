@@ -12,7 +12,10 @@ import (
 
 // SplitEOM returns a bufio.SplitFunc suitable for RFC6242
 // "end-of-message delimited" NETCONF transport streams.
-func SplitEOM(cb func()) bufio.SplitFunc {
+//
+// endOfMessage will be called at the end of each NETCONF message,
+// and must not be nil.
+func SplitEOM(endOfMessage func()) bufio.SplitFunc {
 	var eofOK, seen bool
 	return func(b []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(b) == 0 {
@@ -24,8 +27,8 @@ func SplitEOM(cb func()) bufio.SplitFunc {
 		seen = true
 		idx := bytes.Index(b, tokenEOM)
 		if idx > -1 {
-			if cb != nil {
-				cb()
+			if endOfMessage != nil {
+				endOfMessage()
 			}
 			advance = idx + len(tokenEOM)
 			token = b[:idx]
@@ -51,9 +54,12 @@ func SplitEOM(cb func()) bufio.SplitFunc {
 // SplitChunked returns a bufio.SplitFunc suitable for decoding
 // "chunked framing" NETCONF transport streams.
 //
+// endOfMessage will be called at the end of each NETCONF message,
+// and must not be nil.
+//
 // It must only be used with bufio.Scanner who have a buffer of
 // at least 16 bytes (rarely is this a concern).
-func SplitChunked(cb func()) bufio.SplitFunc {
+func SplitChunked(endOfMessage func()) bufio.SplitFunc {
 	type stateT int
 	const (
 		headerStart stateT = iota
@@ -126,8 +132,8 @@ func SplitChunked(cb func()) bufio.SplitFunc {
 				case r == '\n' && cs > 0:
 					advance++
 					state = headerStart
-					if cb != nil {
-						cb()
+					if endOfMessage != nil {
+						endOfMessage()
 					}
 				default:
 					err = ErrBadChunk

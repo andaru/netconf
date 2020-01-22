@@ -5,12 +5,13 @@ import (
 	"io"
 )
 
-// Writer is a RFC6242 NETCONF transport encoder.
-// An Encoder takes a destination io.Writer and encodes input
+// Writer is a RFC6242 NETCONF transport encoder, implementing io.WriteCloser.
+//
+// A Writer takes a destination io.WriteCloser and encodes input
 // appropriately, with a consistent API no matter the Encoder's
 // current framing mode.
 //
-// It supports both RFC4742, NETCONF 1.0 end-of-message framing
+// It supports both RFC4742 NETCONF 1.0 end-of-message framing
 // as well as NETCONF 1.1 chunked framing.
 type Writer struct {
 	dst     io.WriteCloser
