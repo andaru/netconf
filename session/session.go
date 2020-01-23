@@ -147,23 +147,29 @@ func (s *Session) Outgoing() *message.Encoder { return s.Message.Writer() }
 // if an error occurred (for either transport or validation reasons), in
 // which case Session.Errors will return non-nil and the session status will
 // be StatusError.
-func (s *Session) InitialHandshake() bool {
-	if s.State.Status != StatusCapabilitiesExchange {
-		return false
+func (s *Session) InitialHandshake() (ok bool) {
+	if s.State.Status == StatusCapabilitiesExchange {
+		if s.sendHello(); len(s.State.errs) == 0 {
+			s.recvHello()
+		}
+		ok = len(s.State.errs) == 0
 	}
-	s.sendHello()
-	if len(s.State.errs) == 0 {
-		s.recvHello()
-	} else {
+	if !ok {
 		s.State.Status = StatusError
 	}
-	return len(s.State.errs) == 0
+	return ok
 }
 
 // Close closes the Session
 func (s *Session) Close() error {
 	s.State.Status = StatusClosed
-	return s.dst.Close()
+	s.Outgoing().Close()
+	s.Incoming().Close()
+	err := s.dst.Close()
+	if err == io.ErrClosedPipe {
+		err = nil
+	}
+	return err
 }
 
 // AddError adds an error to the session state
