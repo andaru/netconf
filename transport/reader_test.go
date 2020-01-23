@@ -46,31 +46,14 @@ func TestReader(t *testing.T) {
 				a.Equal("foobar", b.String())
 			},
 		},
-		// {
-		// 	f: func(a *assert.Assertions) {
-		// 		b := closeBuffer{&bytes.Buffer{}}
-		// 		w := NewWriter(b)
-		// 		w.SetFramingMode(true)
-		// 		w.Write([]byte("foo"))
-		// 		w.WriteEnd()
-		// 		a.Equal("\n#3\nfoo\n##\n", b.String())
-		// 	},
-		// },
-		// {
-		// 	f: func(a *assert.Assertions) {
-		// 		b := closeBuffer{&bytes.Buffer{}}
-		// 		w := NewWriter(b)
-		// 		w.Write([]byte("foo"))
-		// 		w.WriteEnd()
-		// 		w.SetFramingMode(true)
-		// 		w.Write([]byte("b"))
-		// 		w.Write([]byte("ar"))
-		// 		w.Write([]byte("baz"))
-		// 		w.WriteEnd()
-		// 		a.Equal("foo]]>]]>\n#1\nb\n#2\nar\n#3\nbaz\n##\n", b.String())
-		// 	},
-		// },
 	} {
 		t.Run("", func(t *testing.T) { tc.f(assert.New(t)) })
 	}
+}
+
+func TestSetFramingModeDouble(t *testing.T) {
+	a := assert.New(t)
+	r := NewReader(strings.NewReader(""), func() {})
+	r.SetFramingMode(true)
+	a.Panics(func() { r.SetFramingMode(true) })
 }
