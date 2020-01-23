@@ -29,16 +29,22 @@ func New(src io.Reader, dst io.WriteCloser, config Config) *Session {
 
 // Run executes the Session s, using Handler h
 func Run(s *Session, h Handler) {
+	// perform the <hello> and <capabilities> exchange
 	if s.InitialHandshake() {
+		// session was established, run the established callback
 		h.OnEstablish(s)
+		// call the session message callback while the session remains established
 		for s.State.Status == StatusEstablished {
 			h.OnMessage(s)
 		}
 	}
 	if s.State.Status == StatusError {
+		// session failed to establish, run the error callback
 		h.OnError(s)
 	}
+	// close the session
 	s.Close()
+	// finally, run the close callback
 	h.OnClose(s)
 }
 
@@ -113,9 +119,12 @@ type State struct {
 type Status int
 
 const (
+	// StatusInactive is the initial session state, indicating that
+	// I/O has not yet been started.
+	StatusInactive Status = iota
 	// StatusCapabilitiesExchange is the capabilities exchange status.
 	// This is set after the <hello> message is received from the peer.
-	StatusCapabilitiesExchange Status = iota
+	StatusCapabilitiesExchange
 	// StatusEstablished is set after capabilities exchange finishes
 	// if the session has been successfully established. Otherwise,
 	// the state machine will proceed to StatusError.
@@ -148,7 +157,8 @@ func (s *Session) Outgoing() *message.Encoder { return s.Message.Writer() }
 // which case Session.Errors will return non-nil and the session status will
 // be StatusError.
 func (s *Session) InitialHandshake() (ok bool) {
-	if s.State.Status == StatusCapabilitiesExchange {
+	if s.State.Status == StatusInactive {
+		s.State.Status = StatusCapabilitiesExchange
 		if s.sendHello(); len(s.State.errs) == 0 {
 			s.recvHello()
 		}
