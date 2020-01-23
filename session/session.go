@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andaru/nc2/message"
-	"github.com/andaru/nc2/transport"
+	"github.com/andaru/netconf/message"
+	"github.com/andaru/netconf/transport"
 	"github.com/antchfx/xmlquery"
 	"github.com/antchfx/xpath"
 )

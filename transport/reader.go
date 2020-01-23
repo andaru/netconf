@@ -2,7 +2,7 @@ package transport
 
 import (
 	"bufio"
-	"github.com/andaru/nc2/framing"
+	"github.com/andaru/netconf/framing"
 	"io"
 )
 

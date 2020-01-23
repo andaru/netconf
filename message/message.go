@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/andaru/nc2/transport"
+	"github.com/andaru/netconf/transport"
 )
 
 // Decoder is a NETCONF message reader, implementing io.ReadCloser.

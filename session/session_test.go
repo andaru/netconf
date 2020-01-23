@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andaru/nc2/message"
+	"github.com/andaru/netconf/message"
 	"github.com/antchfx/xmlquery"
 	"github.com/stretchr/testify/assert"
 )

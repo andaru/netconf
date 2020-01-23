@@ -1,7 +1,7 @@
 package message
 
 import (
-	"github.com/andaru/nc2/transport"
+	"github.com/andaru/netconf/transport"
 )
 
 // Splitter manages the NETCONF transport session for the message layer.
