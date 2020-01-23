@@ -188,7 +188,7 @@ func TestSessionHello(t *testing.T) {
 		urn:ietf:params:netconf:base:1.0
 	</capability>
 </capabilities>
-<session-id> -123 </session-id>
+<session-id>-123</session-id>
 </hello>
 ]]>]]>`,
 			wantErr: "invalid session-id value",

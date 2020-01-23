@@ -103,6 +103,9 @@ type State struct {
 		RxMsgs int
 	}
 
+	// Opaque is user private data and is not used by the netconf libraries.
+	Opaque interface{}
+
 	errs []error
 }
 
