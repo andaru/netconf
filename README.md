@@ -13,6 +13,8 @@ $ go get -u github.com/andaru/netconf/...
 $ (go test github.com/andaru/netconf/... && echo "OK: tests passed") || echo "FAIL: uhoh, tests failed"
 ```
 
+[Go modules](https://github.com/golang/go/wiki/Modules) are not yet supported. Please submit a pull request if you need this support very soon, otherwise I will be adding the module configuration prior to feature completeness.
+
 ## Introduction
 
 With these libraries, it's easy to build NETCONF applications including:
@@ -50,6 +52,7 @@ and accessible way to write fully-featured NETCONF applications with support for
     * Connect to clients via an OpenSSH server subsystem command as a gRPC client to the stream service.
     * Offers access to the stream as an `io.ReadWriteCloser`.
     * Supports multiple simultaneous stream (e.g., to allow separation of `stdout` and `stderr`).
+    * Due to [this issue](https://github.com/golang/go/issues/35025), the "standard" golang `ssh` package cannot be used to write NETCONF SSH servers, but the above gRPC approach with OpenSSH is used successfully in production.
 
 ### Related non-NETCONF libraries under development (in other respoisotires)
 
