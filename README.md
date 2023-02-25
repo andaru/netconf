@@ -29,6 +29,7 @@ By taking care of the messy and inconvenient parts of NETCONF transport and mess
 
 ```go
 import (
+  "io"
   "log"
 
   "github.com/andaru/netconf/session"
