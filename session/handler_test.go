@@ -31,6 +31,9 @@ func TestSessionHandler(t *testing.T) {
 		</capability>
 	</capabilities>
 </hello>
+]]>]]>
+<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+</rpc>
 ]]>]]>`,
 		},
 	} {
@@ -40,7 +43,12 @@ func TestSessionHandler(t *testing.T) {
 			session := New(src, dst, tc.cfg)
 			// our mock server handler for this one session
 			handler := &mockSession{}
+			a := assert.New(t)
+			a.False(handler.c)
+			a.False(handler.csc)
 			session.Run(handler)
+			a.True(handler.c)
+			a.True(handler.csc)
 		})
 	}
 
@@ -92,9 +100,16 @@ func (srv *mockSession) OnEstablish(s *Session) {
 	srv.ec = true
 }
 func (srv *mockSession) OnMessage(s *Session) {
+	// s.Incoming provides the incoming read handle (an io.Reader implementation).
+	//
+	// Use xmlquery.Parse to read and parse a node structure from the
+	// Incoming document's XML.  In this example, we are implementing a server,
+	// so the Incoming stream document represents client requests.
 	node, err := xmlquery.Parse(s.Incoming())
 	switch {
 	case err == message.ErrEndOfStream:
+		// you must handle this error when reading s.Incoming, by setting the session status to
+		// closed
 		s.State.Status = StatusClosed
 		return
 	case err != nil:

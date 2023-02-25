@@ -13,10 +13,10 @@ import (
 	"github.com/antchfx/xpath"
 )
 
-// New returns a new NETCONF Session
+// New returns a new NETCONF Session reading from src and writing to dst with config.
 func New(src io.Reader, dst io.WriteCloser, config Config) *Session {
 	s := &Session{
-		Config: &config,
+		Config: config,
 		State:  &State{},
 		src:    src,
 		dst:    dst,
@@ -50,7 +50,7 @@ func Run(s *Session, h Handler) {
 
 // Session represents a NETCONF session
 type Session struct {
-	Config *Config
+	Config Config
 	State  *State
 
 	src     io.Reader
@@ -103,7 +103,7 @@ type State struct {
 	Capabilities Capabilities
 	// Status is the session status
 	Status Status
-	// Counterts contains session counters
+	// Counters contains session counters
 	Counters struct {
 		// RxMsgs is the number of NETCONF messages received on the session
 		RxMsgs int
@@ -138,10 +138,12 @@ const (
 
 // Incoming returns the incoming (from peer) message channel (implements io.Reader).
 //
-// This function always returned a non-nil message channel.
+// This function always returned a non-nil message channel, even when the peer stream has
+// ended or been closed.
 //
 // Note that the object returned returned will return message.ErrEndOfStream to Read when
-// the underlying transport reaches EOF, and will return io.EOF at the end of each message.
+// the underlying transport reaches EOF or has been closed, and will return io.EOF at the
+// end of each message.
 func (s *Session) Incoming() *message.Decoder { return s.Message.Reader() }
 
 // Outgoing returns the outgoing (to peer) message channel (implements io.WriteCloser).
@@ -304,18 +306,18 @@ func (s *Session) sendHello() {
 		if err != nil {
 			break
 		}
-		err = xe.EncodeToken(seCapability)
-		err = xe.EncodeToken(xml.CharData(cap))
+		_ = xe.EncodeToken(seCapability)
+		_ = xe.EncodeToken(xml.CharData(cap))
 		err = xe.EncodeToken(seCapability.End())
 	}
 	if err == nil && s.Config.ID != 0 {
-		err = xe.EncodeToken(seSessionID)
-		err = xe.EncodeToken(xml.CharData(strconv.FormatUint(uint64(s.Config.ID), 10)))
+		_ = xe.EncodeToken(seSessionID)
+		_ = xe.EncodeToken(xml.CharData(strconv.FormatUint(uint64(s.Config.ID), 10)))
 		err = xe.EncodeToken(seSessionID.End())
 	}
 	if err == nil {
-		err = xe.EncodeToken(seCapabilities.End())
-		err = xe.EncodeToken(seHello.End())
+		_ = xe.EncodeToken(seCapabilities.End())
+		_ = xe.EncodeToken(seHello.End())
 		err = xe.Flush()
 	}
 	if s.AddError(err) > 0 {
@@ -337,6 +339,12 @@ const (
 	capBase11 = "urn:ietf:params:netconf:base:1.1"
 
 	xmlnsNetconf = "urn:ietf:params:xml:ns:netconf:base:1.0"
+)
+
+var (
+	// ErrEndOfStream is the error returned by Read calls to Incoming messages
+	// when the final EOF has been reached.
+	ErrEndOfStream = message.ErrEndOfStream
 )
 
 var (
