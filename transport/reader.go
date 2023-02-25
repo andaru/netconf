@@ -2,8 +2,9 @@ package transport
 
 import (
 	"bufio"
-	"github.com/andaru/netconf/framing"
 	"io"
+
+	"github.com/andaru/netconf/framing"
 )
 
 // Reader is a NETCONF transport decoder offering an io.Reader interface.
@@ -78,19 +79,15 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 
 // SetFramingMode sets the NETCONF transport framing to end of message
 // mode (chunked=false) or chunked framing mode (chunked=true).
-func (r *Reader) SetFramingMode(chunked bool, cbEOM ...func()) {
-	if r.src.buckNot {
+func (r *Reader) SetFramingMode(chunked bool) {
+	if r.src.disabled {
 		panic("SetFramingMode must only be called once")
 	}
-
-	cb := r.eom
-	if len(cbEOM) > 0 {
-		cb = cbEOM[0]
-	}
 	if chunked {
-		r.framing = framing.SplitChunked(cb)
+		r.framing = framing.SplitChunked(r.eom)
 	} else {
-		r.framing = framing.SplitEOM(cb)
+		r.framing = framing.SplitEOM(r.eom)
 	}
-	r.src.buckNot = true
+	// disable message bucker
+	r.src.disabled = true
 }
