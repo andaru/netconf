@@ -117,9 +117,10 @@ func BenchmarkFramingEOM(b *testing.B) {
 
 func TestFramingChunked(t *testing.T) {
 	for _, tc := range []struct {
-		input  string
-		want   string
-		hasErr bool
+		input   string
+		want    string
+		hasErr  bool
+		wantErr string
 	}{
 		// empty input (special case, no end-of-chunks required)
 		{input: "", want: "", hasErr: false},
@@ -131,18 +132,18 @@ func TestFramingChunked(t *testing.T) {
 		{input: "\n#4\nabc\n\n#4\ndef\n\n##\n", want: "abc\ndef\n"},
 
 		// coverage of all error causes
-		{input: "\n##\n", want: "", hasErr: true},
-		{input: "foo]]>]]>bar]]>]]>baz", want: "", hasErr: true},
-		{input: "\n#03\nfoo\n##\n", hasErr: true},
-		{input: "\n#92147483648\nffffffff...", hasErr: true},
-		{input: "\n#9\n012", hasErr: true},
-		{input: "\n#\na\n##\n", hasErr: true},
-		{input: "\n#1a\na\n##\n", hasErr: true},
-		{input: "\n#1\na\n##", hasErr: true},
-		{input: "\n#1\na\n#\n ", hasErr: true},
-		{input: "\n#1\na\n#", hasErr: true},
-		{input: "\n#1\na\n##\n ", hasErr: true},
-		{input: "\n#9\n0123456789\n##\n", hasErr: true},
+		{input: "\n##\n", want: "", hasErr: true, wantErr: "netconf bad chunk: invalid chunk terminator"},
+		{input: "foo]]>]]>bar]]>]]>baz", want: "", hasErr: true, wantErr: "netconf bad chunk: invalid chunk header"},
+		{input: "\n#03\nfoo\n##\n", hasErr: true, wantErr: "netconf bad chunk: invalid chunk size"},
+		{input: "\n#92147483648\nffffffff...", hasErr: true, wantErr: "netconf bad chunk: chunk size too large"},
+		{input: "\n#9\n012", hasErr: true, wantErr: "unexpected EOF"},
+		{input: "\n#\na\n##\n", hasErr: true, wantErr: "netconf bad chunk: invalid chunk size"},
+		{input: "\n#1x\na\n##\n", hasErr: true, wantErr: "netconf bad chunk: invalid chunk size: parsing \"1x\": invalid syntax"},
+		{input: "\n#1\na\n##", hasErr: true, wantErr: "netconf bad chunk: truncated chunk header"},
+		{input: "\n#1\na\n#\n ", hasErr: true, wantErr: "netconf bad chunk: invalid chunk size"},
+		{input: "\n#1\na\n#", hasErr: true, wantErr: "netconf bad chunk: truncated chunk header"},
+		{input: "\n#9\n0123456789\n##\n", hasErr: true, wantErr: "netconf bad chunk: invalid chunk header"},
+		{input: "\n#1\na\n##\n ", hasErr: true, wantErr: "netconf bad chunk: invalid chunk header"}, // note trailing space
 	} {
 		minlen := 16
 		max := 32
@@ -161,6 +162,9 @@ func TestFramingChunked(t *testing.T) {
 				ck.True(serr == nil && !tc.hasErr || serr != nil && tc.hasErr, "want an error only if hasErr true, got %v (hasErr %v)", serr, tc.hasErr)
 				if tc.want != "" {
 					ck.Equal(tc.want, got)
+				}
+				if tc.wantErr != "" {
+					ck.EqualError(serr, tc.wantErr)
 				}
 			})
 		}
