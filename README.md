@@ -110,4 +110,4 @@ func main() {
   * Allows e.g., `openssh` calling a small binary using the protocol client to call into a central NETCONF management agent running the protocol server
 * A document object model (perhaps an extension of `xmlquery`)
 * Encoding, decoding and validation of YANG data, including:
-  * [RFC6020 XML][https://tools.ietf.org/html/rfc6020] and [RFC7951 JSON][https://tools.ietf.org/html/rfc7951] encoding and   decoding of YANG data.
+  * [RFC6020 XML](https://tools.ietf.org/html/rfc6020) and [RFC7951 JSON](https://tools.ietf.org/html/rfc7951) encoding and   decoding of YANG data.
